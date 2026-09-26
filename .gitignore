@@ -1,0 +1,21 @@
+# ---- Agent 相关内容（不纳入版本管理）----
+agents.mdc
+skills/
+MANIFEST.txt
+
+# ---- 调试实例用户数据（体积大，含登录态等个人数据）----
+debug/edge-profile/
+
+# ---- 依赖与构建产物 ----
+node_modules/
+dist/
+
+# ---- 日志与临时文件 ----
+*.log
+tmp/
+
+# ---- 编辑器 / 系统文件 ----
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
