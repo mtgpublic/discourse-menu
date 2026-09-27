@@ -4,6 +4,7 @@
 // @namespace    https://github.com/mtgpublic/discourse-menu
 // @version      0.2.1
 // @description  关闭 Discourse 实验性 sidebar_user_navigation，恢复个人资料页顶部横向 Tab 与常规侧边栏。默认启用 linux.do，可经脚本菜单增删站点。
+// @description:en  Disable Discourse's experimental sidebar_user_navigation to restore the classic horizontal profile tabs and the regular sidebar. Enabled for linux.do by default; add or remove sites via the userscript menu.
 // @author       mtgpublic
 // @match        https://linux.do/*
 // @run-at       document-start
