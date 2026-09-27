@@ -2,7 +2,7 @@
 // @name         Discourse 个人资料页旧版导航回退
 // @name:en      Discourse Profile Tabs Restore
 // @namespace    https://github.com/mtgpublic/discourse-menu
-// @version      0.3.1
+// @version      0.3.2
 // @description  关闭 Discourse 实验性 sidebar_user_navigation，恢复个人资料页顶部横向 Tab 与常规侧边栏。自动在所有疑似 Discourse 站点生效，可用脚本菜单按站点禁用。
 // @description:en  Disable Discourse's experimental sidebar_user_navigation to restore the classic horizontal profile tabs and the regular sidebar. Active on any suspected Discourse site automatically; exclude sites via the userscript menu.
 // @author       mtgpublic
@@ -11,8 +11,11 @@
 // @noframes
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        GM_deleteValue
 // @grant        GM_registerMenuCommand
+// @homepageURL  https://github.com/mtgpublic/discourse-menu
+// @supportURL   https://github.com/mtgpublic/discourse-menu/issues
+// @updateURL    https://raw.githubusercontent.com/mtgpublic/discourse-menu/main/discourse-profile-tabs-restore.user.js
+// @downloadURL  https://raw.githubusercontent.com/mtgpublic/discourse-menu/main/discourse-profile-tabs-restore.user.js
 // @license      MIT
 // ==/UserScript==
 
@@ -28,7 +31,7 @@
  *
  * 站点判定：全站注入（@match 通配全部 http/https 页面）后按特征预筛——
  * head 里的 <meta name="generator" content="Discourse ..."> 或 #data-preloaded 容器。
- * 非 Discourse 页面在 DOM 就绪前即退出，几乎零开销；禁用列表（黑名单）可按域排除。
+ * 非 Discourse 页面在 DOM 就绪仍无特征时退出，几乎零开销；禁用列表（黑名单）可按域排除。
  */
 
 (() => {
@@ -60,10 +63,7 @@
     try { localStorage.setItem(LS_PREFIX + 'blacklist', JSON.stringify(sites)); } catch { /* 忽略 */ }
   };
   const normalizeHost = (input) => String(input || '').trim()
-    .replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
-  // 清理废弃的白名单存储键
-  try { if (typeof GM_deleteValue === 'function' && GM_getValue('sites') !== undefined) GM_deleteValue('sites'); } catch { /* 忽略 */ }
-  try { localStorage.removeItem(LS_PREFIX + 'sites'); } catch { /* 忽略 */ }
+    .replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/:\d+$/, '').toLowerCase();
 
   // ---- 站点规则面板（禁用列表；任何站点上都可打开）----
   const openConfig = () => {
@@ -136,15 +136,18 @@
   if (typeof GM_registerMenuCommand === 'function') {
     try { GM_registerMenuCommand('站点规则管理', openConfig); } catch { /* 忽略 */ }
   }
-  // 调试/验收钩子：mode 标记脚本在本页的最终状态（active / blacklisted / inactive-non-discourse）
+  // 调试/验收钩子：默认不暴露，避免页面脚本借此检测脚本存在；
+  // 需要验收时在站点 URL 后追加 dptr-debug 查询参数（任意值）才挂到 window 上
+  // mode 标记脚本在本页的最终状态（active / blacklisted / inactive-non-discourse）
   const hook = { openConfig, sites: loadBlacklist, mode: 'starting' };
-  try { win.__dptr = hook; } catch { /* 忽略 */ }
+  try { if (new URLSearchParams(location.search).has('dptr-debug')) win.__dptr = hook; } catch { /* 忽略 */ }
 
   // ---- 主逻辑：翻转设置；已发生的接管就地复位 ----
   // done 与 restore 仅被 startMainLogic 内的观察器回调与轮询引用，随其一起定义，
   // 使 restore 对 stopObserving 的调用处于同一作用域
   const startMainLogic = () => {
-    if (loadBlacklist().includes(location.hostname)) {
+    // 比较端同样归一化：兼容旧版本存入的、带端口的黑名单条目
+    if (loadBlacklist().some((s) => normalizeHost(s) === location.hostname)) {
       hook.mode = 'blacklisted';
       return;
     }
@@ -161,14 +164,12 @@
       if (!(SETTING in siteSettings)) return;
       // 本次页面加载里接管可能已经发生（脚本注入晚于路由激活）：
       // 必须在翻转前读取 enabled——翻转后它恒为 false，会漏掉复位
-      let takeoverActive = false;
-      try {
-        const sm = container.lookup('service:user-nav-sidebar-state-manager');
-        takeoverActive = !!(sm && sm.enabled);
-      } catch { /* 服务不存在则无需复位 */ }
+      let sm = null;
+      try { sm = container.lookup('service:user-nav-sidebar-state-manager'); } catch { /* 服务不存在则无需复位 */ }
+      const takeoverActive = !!(sm && sm.enabled);
       siteSettings[SETTING] = false;
       if (takeoverActive) {
-        try { container.lookup('service:user-nav-sidebar-state-manager').stopForcingUserNavSidebar(); } catch { /* 忽略 */ }
+        try { sm.stopForcingUserNavSidebar(); } catch { /* 忽略 */ }
       }
       document.body && document.body.classList.remove(BODY_FLAG);
       done = true;

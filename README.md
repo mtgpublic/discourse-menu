@@ -26,7 +26,7 @@
 
 ## 站点规则
 
-- 脚本全站注入，运行时按特征预筛（`<meta name="generator">` 含 Discourse，或存在 `#data-preloaded` 容器），仅在疑似 Discourse 站点激活；其他页面在 DOM 就绪前即静默退出，几乎零开销。
+- 脚本全站注入，运行时按特征预筛（`<meta name="generator">` 含 Discourse，或存在 `#data-preloaded` 容器），仅在疑似 Discourse 站点激活；其他页面在 DOM 就绪仍无特征时静默退出，几乎零开销。
 - 排除某个站点：脚本菜单 →「站点规则管理」→ 添加域名（存于 Tampermonkey 存储），刷新该站生效；从列表移除即恢复。
 - 配置面板可在任何站点的脚本菜单中打开。
 
@@ -34,6 +34,8 @@
 
 - [`debug/start-edge.cmd`](debug/start-edge.cmd)：启动独立的 Edge 调试实例（CDP 端口 9222、
   用户数据目录 `debug/edge-profile/`，不污染日常浏览器配置，登录态与 Tampermonkey 均持久化）；
+- 调试钩子默认不暴露：需在站点 URL 后追加 `dptr-debug` 查询参数（任意值，如
+  `?dptr-debug=1`）才会把 `window.__dptr`（含 `mode` 状态与 `openConfig`）挂到页面，供验收脚本读取；
 - `tmp/`：调研与验收用临时产物（已 gitignore），验收覆盖硬加载、SPA、移动端与多站点场景。
 
 ## 已知限制
@@ -41,6 +43,7 @@
 - 该设置当前为 experimental，上游可能改名或调整行为；脚本检测不到设置时会静默退出。
 - 若站点管理员关闭了该 upcoming change，脚本自动成为空操作，无需卸载。
 - 个别未携带 generator meta 与 preloaded 容器的 Discourse 定制版可能无法被识别为疑似站点。
+- 若 GM 存储不可用而回落到 localStorage，禁用列表仅保存在当前站点、不跨站同步（GM 存储可用时不受影响）。
 
 ## 致谢
 
