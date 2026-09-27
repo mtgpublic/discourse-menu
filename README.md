@@ -1,6 +1,6 @@
 # discourse-menu
 
-**Discourse 个人资料页旧版导航回退**（Discourse Profile Tabs Restore）——一个让 Discourse 站点（默认 [linux.do](https://linux.do)）恢复个人资料页顶部横向 Tab 导航的油猴脚本。
+**Discourse 个人资料页旧版导航回退**（Discourse Profile Tabs Restore）——一个让 Discourse 站点恢复个人资料页顶部横向 Tab 导航的油猴脚本，自动适配所有疑似 Discourse 的站点。
 
 ## 背景
 
@@ -22,25 +22,25 @@
 
 1. 浏览器安装 [Tampermonkey](https://www.tampermonkey.net/)；
 2. Tampermonkey → 新建脚本 → 粘贴 [`discourse-profile-tabs-restore.user.js`](discourse-profile-tabs-restore.user.js) 全文并保存；
-3. 打开 linux.do 任意页面即可生效（脚本菜单出现「启用站点管理」）。
+3. 打开任意 Discourse 站点即可生效（脚本菜单出现「站点规则管理」）。
 
-## 配置站点
+## 站点规则
 
-- 默认仅启用 `linux.do`；
-- 脚本菜单 →「启用站点管理」可添加/删除站点（存于 Tampermonkey 存储）；
-- 新站点还需在脚本头部追加一行 `@match https://<域名>/*`，否则脚本不会在该站注入。
+- 脚本全站注入，运行时按特征预筛（`<meta name="generator">` 含 Discourse，或存在 `#data-preloaded` 容器），仅在疑似 Discourse 站点激活；其他页面在 DOM 就绪前即静默退出，几乎零开销。
+- 排除某个站点：脚本菜单 →「站点规则管理」→ 添加域名（存于 Tampermonkey 存储），刷新该站生效；从列表移除即恢复。
+- 配置面板可在任何站点的脚本菜单中打开。
 
 ## 开发环境
 
 - [`debug/start-edge.cmd`](debug/start-edge.cmd)：启动独立的 Edge 调试实例（CDP 端口 9222、
   用户数据目录 `debug/edge-profile/`，不污染日常浏览器配置，登录态与 Tampermonkey 均持久化）；
-- `tmp/`：调研与验收用临时产物（已 gitignore），验收脚本以
-  `Page.addScriptToEvaluateOnNewDocument` 注入并验证硬加载与 SPA 两个场景。
+- `tmp/`：调研与验收用临时产物（已 gitignore），验收覆盖硬加载、SPA、移动端与多站点场景。
 
 ## 已知限制
 
 - 该设置当前为 experimental，上游可能改名或调整行为；脚本检测不到设置时会静默退出。
 - 若站点管理员关闭了该 upcoming change，脚本自动成为空操作，无需卸载。
+- 个别未携带 generator meta 与 preloaded 容器的 Discourse 定制版可能无法被识别为疑似站点。
 
 ## 致谢
 
