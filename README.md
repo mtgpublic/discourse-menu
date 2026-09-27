@@ -45,7 +45,6 @@
 ## 致谢
 
 - 感谢 [linux.do](https://linux.do) ——「新的理想型社区」。本脚本的问题来源、思路调研与全部实机验证均在 linux.do 完成，没有这个社区就没有这个脚本。
-- 感谢 [Discourse](https://github.com/discourse/discourse) 团队持续以 upcoming change 的形式透明地灰度实验性功能，使客户端侧的回退成为可能。
 
 ## 许可证
 
