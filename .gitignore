@@ -13,9 +13,11 @@ dist/
 # ---- 日志与临时文件 ----
 *.log
 tmp/
+gui-test-screenshots/
 
 # ---- 编辑器 / 系统文件 ----
 .vscode/
 .idea/
+.zcodeignore
 Thumbs.db
 .DS_Store
