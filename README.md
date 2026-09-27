@@ -1,6 +1,6 @@
 # discourse-menu
 
-让 Discourse 站点（默认 linux.do）回退个人资料页旧版导航的油猴脚本。
+**Discourse 个人资料页旧版导航回退**（Discourse Profile Tabs Restore）——一个让 Discourse 站点（默认 [linux.do](https://linux.do)）恢复个人资料页顶部横向 Tab 导航的油猴脚本。
 
 ## 背景
 
@@ -21,7 +21,7 @@
 ## 安装
 
 1. 浏览器安装 [Tampermonkey](https://www.tampermonkey.net/)；
-2. Tampermonkey → 新建脚本 → 粘贴 `discourse-profile-tabs-restore.user.js` 全文并保存；
+2. Tampermonkey → 新建脚本 → 粘贴 [`discourse-profile-tabs-restore.user.js`](discourse-profile-tabs-restore.user.js) 全文并保存；
 3. 打开 linux.do 任意页面即可生效（脚本菜单出现「启用站点管理」）。
 
 ## 配置站点
@@ -32,7 +32,7 @@
 
 ## 开发环境
 
-- `debug/start-edge.cmd`：启动独立的 Edge 调试实例（CDP 端口 9222、
+- [`debug/start-edge.cmd`](debug/start-edge.cmd)：启动独立的 Edge 调试实例（CDP 端口 9222、
   用户数据目录 `debug/edge-profile/`，不污染日常浏览器配置，登录态与 Tampermonkey 均持久化）；
 - `tmp/`：调研与验收用临时产物（已 gitignore），验收脚本以
   `Page.addScriptToEvaluateOnNewDocument` 注入并验证硬加载与 SPA 两个场景。
@@ -41,3 +41,12 @@
 
 - 该设置当前为 experimental，上游可能改名或调整行为；脚本检测不到设置时会静默退出。
 - 若站点管理员关闭了该 upcoming change，脚本自动成为空操作，无需卸载。
+
+## 致谢
+
+- 感谢 [linux.do](https://linux.do) ——「新的理想型社区」。本脚本的问题来源、思路调研与全部实机验证均在 linux.do 完成，没有这个社区就没有这个脚本。
+- 感谢 [Discourse](https://github.com/discourse/discourse) 团队持续以 upcoming change 的形式透明地灰度实验性功能，使客户端侧的回退成为可能。
+
+## 许可证
+
+[MIT](https://opensource.org/licenses/MIT)
