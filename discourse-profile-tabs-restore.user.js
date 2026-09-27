@@ -2,7 +2,7 @@
 // @name         Discourse 个人资料页旧版导航回退
 // @name:en      Discourse Profile Tabs Restore
 // @namespace    https://github.com/mtgpublic/discourse-menu
-// @version      0.3.0
+// @version      0.3.1
 // @description  关闭 Discourse 实验性 sidebar_user_navigation，恢复个人资料页顶部横向 Tab 与常规侧边栏。自动在所有疑似 Discourse 站点生效，可用脚本菜单按站点禁用。
 // @description:en  Disable Discourse's experimental sidebar_user_navigation to restore the classic horizontal profile tabs and the regular sidebar. Active on any suspected Discourse site automatically; exclude sites via the userscript menu.
 // @author       mtgpublic
@@ -141,38 +141,40 @@
   try { win.__dptr = hook; } catch { /* 忽略 */ }
 
   // ---- 主逻辑：翻转设置；已发生的接管就地复位 ----
-  let done = false;
-  const restore = () => {
-    if (done) return;
-    const container = win.Discourse && win.Discourse.__container__;
-    if (!container) return;
-    let siteSettings;
-    try { siteSettings = container.lookup('service:site')?.siteSettings; } catch { return; }
-    if (!siteSettings) return;
-    // 站点设置在 boot 后经 /site.json 异步装载，键未出现前不能判定上游已移除，继续等待
-    if (!(SETTING in siteSettings)) return;
-    // 本次页面加载里接管可能已经发生（脚本注入晚于路由激活）：
-    // 必须在翻转前读取 enabled——翻转后它恒为 false，会漏掉复位
-    let takeoverActive = false;
-    try {
-      const sm = container.lookup('service:user-nav-sidebar-state-manager');
-      takeoverActive = !!(sm && sm.enabled);
-    } catch { /* 服务不存在则无需复位 */ }
-    siteSettings[SETTING] = false;
-    if (takeoverActive) {
-      try { container.lookup('service:user-nav-sidebar-state-manager').stopForcingUserNavSidebar(); } catch { /* 忽略 */ }
-    }
-    document.body && document.body.classList.remove(BODY_FLAG);
-    done = true;
-    stopObserving();
-  };
-
+  // done 与 restore 仅被 startMainLogic 内的观察器回调与轮询引用，随其一起定义，
+  // 使 restore 对 stopObserving 的调用处于同一作用域
   const startMainLogic = () => {
     if (loadBlacklist().includes(location.hostname)) {
       hook.mode = 'blacklisted';
       return;
     }
     hook.mode = 'active';
+    let done = false;
+    const restore = () => {
+      if (done) return;
+      const container = win.Discourse && win.Discourse.__container__;
+      if (!container) return;
+      let siteSettings;
+      try { siteSettings = container.lookup('service:site')?.siteSettings; } catch { return; }
+      if (!siteSettings) return;
+      // 站点设置在 boot 后经 /site.json 异步装载，键未出现前不能判定上游已移除，继续等待
+      if (!(SETTING in siteSettings)) return;
+      // 本次页面加载里接管可能已经发生（脚本注入晚于路由激活）：
+      // 必须在翻转前读取 enabled——翻转后它恒为 false，会漏掉复位
+      let takeoverActive = false;
+      try {
+        const sm = container.lookup('service:user-nav-sidebar-state-manager');
+        takeoverActive = !!(sm && sm.enabled);
+      } catch { /* 服务不存在则无需复位 */ }
+      siteSettings[SETTING] = false;
+      if (takeoverActive) {
+        try { container.lookup('service:user-nav-sidebar-state-manager').stopForcingUserNavSidebar(); } catch { /* 忽略 */ }
+      }
+      document.body && document.body.classList.remove(BODY_FLAG);
+      done = true;
+      stopObserving();
+    };
+
     // body class 变化只发生在 <body> 上：body 出现后仅监听其 class 属性，
     // 避免 document-start 阶段对整棵树的逐变更回调；documentElement 在此刻可能尚为 null
     let bodyObserver = null;
