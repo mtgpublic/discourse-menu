@@ -2,7 +2,7 @@
 // @name         Discourse 个人资料页旧版导航回退
 // @name:en      Discourse Profile Tabs Restore
 // @namespace    https://github.com/mtgpublic/discourse-menu
-// @version      0.1.0
+// @version      0.2.1
 // @description  关闭 Discourse 实验性 sidebar_user_navigation，恢复个人资料页顶部横向 Tab 与常规侧边栏。默认启用 linux.do，可经脚本菜单增删站点。
 // @author       mtgpublic
 // @match        https://linux.do/*
@@ -59,55 +59,6 @@
     .replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
   if (!loadSites().length) saveSites(DEFAULT_SITES.slice());
 
-  if (!loadSites().includes(location.hostname)) return;
-
-  // ---- 主逻辑：尽早翻转设置；已发生的接管就地复位 ----
-  let done = false;
-  const restore = () => {
-    if (done) return;
-    const container = win.Discourse && win.Discourse.__container__;
-    if (!container) return;
-    let siteSettings;
-    try { siteSettings = container.lookup('service:site')?.siteSettings; } catch { return; }
-    if (!siteSettings) return;
-    // 站点设置在 boot 后经 /site.json 异步装载，键未出现前不能判定上游已移除，继续等待
-    if (!(SETTING in siteSettings)) return;
-    // 本次页面加载里接管可能已经发生（脚本注入晚于路由激活）：
-    // 必须在翻转前读取 enabled——翻转后它恒为 false，会漏掉复位
-    let takeoverActive = false;
-    try {
-      const sm = container.lookup('service:user-nav-sidebar-state-manager');
-      takeoverActive = !!(sm && sm.enabled);
-    } catch { /* 服务不存在则无需复位 */ }
-    siteSettings[SETTING] = false;
-    if (takeoverActive) {
-      try { container.lookup('service:user-nav-sidebar-state-manager').stopForcingUserNavSidebar(); } catch { /* 忽略 */ }
-    }
-    document.body && document.body.classList.remove(BODY_FLAG);
-    done = true;
-    stopObserving();
-  };
-
-  // document-start 轮询等待 Ember 容器；user-nav-panel-active 一旦出现立即摘除，
-  // 消除「翻转落地前新 UI 闪现」，并为 SPA 内重渲染兜底。
-  // 注意：document-start 时 documentElement 可能为 null，必须观察 document 根节点
-  const observer = new MutationObserver(() => {
-    if (done) return;
-    const body = document.body;
-    if (body && body.classList.contains(BODY_FLAG)) restore();
-  });
-  observer.observe(document, {
-    childList: true, subtree: true, attributes: true, attributeFilter: ['class'],
-  });
-  const stopObserving = () => observer.disconnect();
-
-  const poll = setInterval(() => {
-    if (done) { clearInterval(poll); return; }
-    restore();
-    if (done) clearInterval(poll);
-  }, 50);
-  setTimeout(() => clearInterval(poll), 30000);
-
   // ---- 站点白名单配置（无依赖的轻量面板）----
   const openConfig = () => {
     const old = document.getElementById('dptr-config');
@@ -154,9 +105,10 @@
         render();
       };
       addRow.append(input, add);
+      input.onkeydown = (e) => { if (e.key === 'Enter') add.click(); };
       panel.appendChild(addRow);
       const tip = document.createElement('div');
-      tip.textContent = '新站点还需在脚本头部追加一行 @match https://域名/* 方可注入。';
+      tip.textContent = '添加后刷新该站点页面生效。若脚本未在此站注入，还须在脚本头部追加一行 @match https://域名/*。';
       tip.style.cssText = 'color:#777;font-size:11px;margin-top:8px;';
       panel.appendChild(tip);
       const close = document.createElement('div');
@@ -168,7 +120,67 @@
     render();
     document.body.appendChild(panel);
   };
+
+  // 菜单命令必须在白名单判断之前注册：未启用的站点上也要能打开面板添加自身
   if (typeof GM_registerMenuCommand === 'function') {
     try { GM_registerMenuCommand('启用站点管理', openConfig); } catch { /* 忽略 */ }
   }
+  // 调试/验收钩子：供自动化测试与人工排查使用
+  try { win.__dptr = { openConfig, sites: loadSites }; } catch { /* 忽略 */ }
+
+  if (!loadSites().includes(location.hostname)) return;
+
+  // ---- 主逻辑：尽早翻转设置；已发生的接管就地复位 ----
+  let done = false;
+  const restore = () => {
+    if (done) return;
+    const container = win.Discourse && win.Discourse.__container__;
+    if (!container) return;
+    let siteSettings;
+    try { siteSettings = container.lookup('service:site')?.siteSettings; } catch { return; }
+    if (!siteSettings) return;
+    // 站点设置在 boot 后经 /site.json 异步装载，键未出现前不能判定上游已移除，继续等待
+    if (!(SETTING in siteSettings)) return;
+    // 本次页面加载里接管可能已经发生（脚本注入晚于路由激活）：
+    // 必须在翻转前读取 enabled——翻转后它恒为 false，会漏掉复位
+    let takeoverActive = false;
+    try {
+      const sm = container.lookup('service:user-nav-sidebar-state-manager');
+      takeoverActive = !!(sm && sm.enabled);
+    } catch { /* 服务不存在则无需复位 */ }
+    siteSettings[SETTING] = false;
+    if (takeoverActive) {
+      try { container.lookup('service:user-nav-sidebar-state-manager').stopForcingUserNavSidebar(); } catch { /* 忽略 */ }
+    }
+    document.body && document.body.classList.remove(BODY_FLAG);
+    done = true;
+    stopObserving();
+  };
+
+  // body class 变化只发生在 <body> 上：body 出现后仅监听其 class 属性，
+  // 避免 document-start 阶段对整棵树的逐变更回调；documentElement 在此刻可能尚为 null
+  let bodyObserver = null;
+  const onMut = () => {
+    if (done) return;
+    if (document.body && document.body.classList.contains(BODY_FLAG)) restore();
+  };
+  const docObserver = new MutationObserver(() => {
+    if (!document.body) return;
+    docObserver.disconnect();
+    bodyObserver = new MutationObserver(onMut);
+    bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    onMut();
+  });
+  docObserver.observe(document, { childList: true, subtree: true });
+  const stopObserving = () => {
+    docObserver.disconnect();
+    if (bodyObserver) bodyObserver.disconnect();
+  };
+
+  const poll = setInterval(() => {
+    if (done) { clearInterval(poll); return; }
+    restore();
+    if (done) clearInterval(poll);
+  }, 50);
+  setTimeout(() => clearInterval(poll), 30000);
 })();
